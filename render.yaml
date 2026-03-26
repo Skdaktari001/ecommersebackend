@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: free  # Change to 'starter' or higher for better performance
     region: oregon  # Change based on your location (e.g., frankfurt)
-    buildCommand: npm install
-    startCommand: npm start  # Update if using a different start script
+    buildCommand: pnpm install && pnpm run build
+    startCommand: pnpm start  # Update if using a different start script
     envVars:
       - key: NODE_VERSION
         value: 18  # Update according to your Node.js version

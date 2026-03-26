@@ -10,6 +10,7 @@
     "dev": "nodemon server.js",
     "prod": "NODE_ENV=production node server.js",
     "build": "prisma generate",
+    "postinstall": "prisma generate",
     "lint": "eslint .",
     "format": "prettier --write .",
     "seed": "node seeders/seed.js",
