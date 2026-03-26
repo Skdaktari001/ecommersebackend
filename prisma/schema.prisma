@@ -14,12 +14,16 @@ enum OrderStatus {
   shipped
   delivered
   cancelled
+
+  @@map("order_status")
 }
 
 enum ReviewStatus {
   pending
   approved
   rejected
+
+  @@map("review_status")
 }
 
 model User {
