@@ -232,6 +232,21 @@ const removeProduct = async (req, res) => {
       });
     }
 
+    // --- Robust Deletion: Handle Relations Manually ---
+    // 1. Delete associated CartItems
+    await prisma.cartItem.deleteMany({
+      where: { productId }
+    });
+
+    // 2. Clear product reference from OrderItems (historical records stay)
+    await prisma.orderItem.updateMany({
+      where: { productId },
+      data: { productId: null }
+    });
+
+    // 3. Clear reviews if not already handled by cascade (schema says it is, but let's be safe)
+    // await prisma.review.deleteMany({ where: { productId } });
+
     // Delete images from Cloudinary
     if (product.images && product.images.length > 0) {
       try {
@@ -246,6 +261,7 @@ const removeProduct = async (req, res) => {
       }
     }
 
+    // Now delete the product and its images relation
     await prisma.product.delete({
       where: { id: productId }
     });
@@ -258,7 +274,8 @@ const removeProduct = async (req, res) => {
     console.error('Remove product error:', error);
     res.status(500).json({
       success: false,
-      message: "Internal server error while removing product"
+      message: "Internal server error while removing product",
+      error: error.message
     });
   }
 };
@@ -329,39 +346,48 @@ const updateProduct = async (req, res) => {
 
     const dataToUpdate = {};
 
-    // Handle image updates if new images are uploaded
+    // Handle image updates
     if (req.files && Object.keys(req.files).length > 0) {
-      const image1 = req.files.image1?.[0];
-      const image2 = req.files.image2?.[0];
-      const image3 = req.files.image3?.[0];
-      const image4 = req.files.image4?.[0];
+      const imageSlots = ['image1', 'image2', 'image3', 'image4'];
+      
+      for (let i = 0; i < imageSlots.length; i++) {
+        const slotName = imageSlots[i];
+        const newFile = req.files[slotName]?.[0];
 
-      const newImages = [image1, image2, image3, image4].filter((item) => item !== undefined);
+        if (newFile) {
+          // If there's an existing image at this position, delete it from Cloudinary
+          const existingImage = product.images[i];
+          if (existingImage) {
+            try {
+              const publicId = existingImage.imageUrl.split('/').pop().split('.')[0];
+              await cloudinary.uploader.destroy(`products/${publicId}`);
+              
+              // Delete from DB
+              await prisma.productImage.delete({ where: { id: existingImage.id } });
+            } catch (err) {
+              console.warn(`Could not delete old image ${i} from Cloudinary/DB:`, err);
+            }
+          }
 
-      if (newImages.length > 0) {
-        const newImagesUrl = await Promise.all(
-          newImages.map(async (item) => {
-            const result = await cloudinary.uploader.upload(item.path, {
-              resource_type: 'image',
-              folder: 'products'
-            });
-            return result.secure_url;
-          })
-        );
+          // Upload new image
+          const result = await cloudinary.uploader.upload(newFile.path, {
+            resource_type: 'image',
+            folder: 'products'
+          });
 
-        // For simplicity, we'll replace all images or append. 
-        // Let's append but limit to 4.
-        await prisma.productImage.createMany({
-          data: newImagesUrl.map(url => ({
-            productId,
-            imageUrl: url,
-            isPrimary: false
-          }))
-        });
+          // Create new DB record
+          await prisma.productImage.create({
+            data: {
+              productId,
+              imageUrl: result.secure_url,
+              isPrimary: i === 0 && !product.images.some(img => img.isPrimary && img !== existingImage)
+            }
+          });
+        }
       }
     }
 
-    // Prepare update data
+    // Prepare other update data
     if (updates.name) dataToUpdate.name = updates.name.trim();
     if (updates.description) dataToUpdate.description = updates.description.trim();
     if (updates.price) dataToUpdate.price = parseFloat(updates.price);
@@ -407,7 +433,8 @@ const updateProduct = async (req, res) => {
     console.error('Update product error:', error);
     res.status(500).json({
       success: false,
-      message: "Internal server error while updating product"
+      message: "Internal server error while updating product",
+      error: error.message
     });
   }
 };

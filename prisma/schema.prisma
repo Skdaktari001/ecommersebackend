@@ -4,7 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 
@@ -115,7 +117,7 @@ model OrderItem {
   quantity  Int
   price     Decimal  @db.Decimal(10, 2)
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product   Product? @relation(fields: [productId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([orderId], map: "idx_order_items_order")
   @@map("order_items")
@@ -162,7 +164,7 @@ model CartItem {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamp
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   Product? @relation(fields: [productId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId, size])
   @@index([userId], map: "idx_cart_user")
