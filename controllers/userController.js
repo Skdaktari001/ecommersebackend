@@ -2,10 +2,11 @@ import prisma from "../config/prisma.js";
 import validator from "validator";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { passwordRegex } from "../utils/validation.js";
 
 // ---------------------- TOKEN ----------------------
 const createToken = (id, isAdmin = false) => {
-  return jwt.sign({ id, isAdmin }, process.env.JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign({ id, isAdmin }, process.env.JWT_SECRET, { expiresIn: "24h" });
 };
 
 // ---------------------- GET CURRENT USER ----------------------
@@ -156,11 +157,11 @@ const registerUser = async (req, res) => {
       });
     }
 
-    if (password.length < 8) {
-      console.log("❌ Password too short");
+    if (!passwordRegex.test(password)) {
+      console.log("❌ Weak password attempt");
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 8 characters",
+        message: "Password must be at least 8 characters long, and include uppercase, lowercase, a number, and a special character.",
       });
     }
 
@@ -319,10 +320,10 @@ const createAdminWithSecret = async (req, res) => {
     }
 
     // Validate password strength
-    if (password.length < 8) {
+    if (!passwordRegex.test(password)) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 8 characters",
+        message: "Password must be at least 8 characters long, and include uppercase, lowercase, a number, and a special character.",
       });
     }
 
@@ -398,10 +399,10 @@ const createAdminByAdmin = async (req, res) => {
     }
 
     // Validate password strength
-    if (password.length < 8) {
+    if (!passwordRegex.test(password)) {
       return res.status(400).json({
         success: false,
-        message: "Password must be at least 8 characters",
+        message: "Password must be at least 8 characters long, and include uppercase, lowercase, a number, and a special character.",
       });
     }
 
@@ -427,7 +428,8 @@ const createAdminByAdmin = async (req, res) => {
             id: updatedUser.id,
             name: updatedUser.name,
             email: updatedUser.email,
-            isAdmin: true
+            isAdmin: true,
+            isActive: updatedUser.isActive
           }
         });
       } else {
@@ -461,7 +463,8 @@ const createAdminByAdmin = async (req, res) => {
         id: admin.id,
         name: admin.name,
         email: admin.email,
-        isAdmin: admin.isAdmin
+        isAdmin: admin.isAdmin,
+        isActive: admin.isActive
       }
     });
   } catch (error) {

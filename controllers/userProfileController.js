@@ -2,6 +2,7 @@
 import prisma from "../config/prisma.js";
 import bcrypt from "bcryptjs";
 import { v2 as cloudinary } from 'cloudinary';
+import { passwordRegex } from "../utils/validation.js";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -257,10 +258,10 @@ const changePassword = async (req, res) => {
             });
         }
 
-        if (newPassword.length < 8) {
+        if (!passwordRegex.test(newPassword)) {
             return res.status(400).json({
                 success: false,
-                message: "New password must be at least 8 characters"
+                message: "New password must be at least 8 characters long, and include uppercase, lowercase, a number, and a special character."
             });
         }
 

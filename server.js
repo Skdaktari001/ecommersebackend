@@ -12,12 +12,16 @@ import userProfileRouter from './routes/userProfileRoute.js';
 import reviewRoute from './routes/reviewRoute.js';
 import paymentRouter from './routes/paymentRoutes.js';
 import { cleanupUploadsOnError } from './middleware/multer.js';
+import helmet from 'helmet';
+import { apiLimiter } from './middleware/rateLimiter.js';
 
 // App config
 const app = express();
 const port = process.env.PORT || 4000;
 
 // Middlewares
+app.use(helmet());
+app.use(apiLimiter);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

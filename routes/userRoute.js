@@ -16,14 +16,15 @@ import {
 } from '../controllers/userController.js'
 import authMiddleware from '../middleware/auth.js'
 import adminMiddleware from '../middleware/adminAuth.js'
+import { loginLimiter } from '../middleware/rateLimiter.js'
 
 const userRouter = express.Router();
 
 // ==================== PUBLIC ROUTES ====================
 // User registration and login
-userRouter.post('/register', registerUser);
-userRouter.post('/login', loginUser);
-userRouter.post('/admin-login', adminLogin);
+userRouter.post('/register', loginLimiter, registerUser);
+userRouter.post('/login', loginLimiter, loginUser);
+userRouter.post('/admin-login', loginLimiter, adminLogin);
 userRouter.post('/verify-token', verifyToken);
 
 // Admin creation with secret (for initial setup - keep public for first admin)
