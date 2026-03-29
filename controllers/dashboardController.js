@@ -243,12 +243,14 @@ const getTopProducts = async (req, res) => {
     try {
         console.log('🏆 Fetching top products');
 
-        // Aggregate product sales from order items
+        // Aggregate product sales from order items, excluding deleted products
         const topSoldProducts = await prisma.orderItem.groupBy({
             by: ['productId'],
+            where: {
+                productId: { not: null }
+            },
             _sum: {
-                quantity: true,
-                price: true // This is per item price, we need to calculate revenue
+                quantity: true
             },
             orderBy: {
                 _sum: {
@@ -261,21 +263,14 @@ const getTopProducts = async (req, res) => {
         // Enrich with product details
         const enrichedProducts = await Promise.all(
             topSoldProducts.map(async (item) => {
+                if (!item.productId) return null;
+
                 const product = await prisma.product.findUnique({
                     where: { id: item.productId },
                     include: { images: true }
                 });
 
                 // Calculate revenue specifically for this product
-                const revenue = await prisma.orderItem.aggregate({
-                    where: { productId: item.productId },
-                    _sum: {
-                        price: true,
-                        quantity: true
-                    }
-                });
-
-                // Note: Since price can vary or be specific to order item, we use order items for revenue
                 const items = await prisma.orderItem.findMany({
                     where: { productId: item.productId }
                 });
@@ -296,7 +291,7 @@ const getTopProducts = async (req, res) => {
 
         res.json({
             success: true,
-            products: enrichedProducts
+            products: enrichedProducts.filter(p => p !== null)
         });
     } catch (error) {
         console.error('❌ Top products error:', error);
